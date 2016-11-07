@@ -14,6 +14,8 @@ class TutorialFrame extends JFrame {
     private boolean currentCardAdded;
     private JList<Integer> items;
     private static final Logger LOGGER = Logger.getLogger(TutorialFrame.class.getName());
+    private DefaultListModel<Integer> listModel;
+    private int index;
 
     TutorialFrame() {
         tutorial = new Tutorial();
@@ -42,7 +44,9 @@ class TutorialFrame extends JFrame {
     }
     private JPanel createButtonPanel() {
         JPanel buttonPanel = new JPanel();
-        indexField = new JTextField("" + 0);
+        index = 0;
+        indexField = new JTextField("" + index);
+        indexField.setColumns(3);
         JButton previousButton = new JButton("Previous");
         JButton nextButton = new JButton("Next");
         buttonPanel.add(indexField);
@@ -50,11 +54,29 @@ class TutorialFrame extends JFrame {
         buttonPanel.add(nextButton);
         previousButton.addActionListener(new PreviousCardListener());
         nextButton.addActionListener(new NextCardListener());
+        Action action = new AbstractAction()
+        {
+            @Override
+            public void actionPerformed(ActionEvent e)
+            {
+                System.out.println("some action");
+                int givenIndex;
+                try {
+                    givenIndex = Integer.parseInt(indexField.getText());
+                } catch (NumberFormatException nfe) {
+                    givenIndex = index;
+                }
+                if(givenIndex == index || givenIndex < 0 || givenIndex > tutorial.size()) {
+                    indexField.setText("" + index);
+                }
+            }
+        };
+        indexField.addActionListener(action);
         return buttonPanel;
     }
     private JPanel createListPanel() {
         JPanel listPanel = new JPanel();
-        DefaultListModel<Integer> listModel = new DefaultListModel<>();
+        listModel = new DefaultListModel<>();
         listModel.addElement(0);
         items = new JList<>(listModel);
         items.setSelectedIndex(0);
@@ -97,22 +119,19 @@ class TutorialFrame extends JFrame {
         mainPanel.add(aScroller);
         return mainPanel;
     }
+    private Entry createEntry() {return new Entry(question.getText(), answer.getText());}
     private void updateEntryNext() {
-        Entry entry = new Entry(question.getText(), answer.getText());
+        Entry entry = createEntry();
         if(currentCardAdded) {
             tutorial.set(entry);
         } else  {
             tutorial.add(entry);
-            if(items.getModel() instanceof DefaultListModel) {
-                DefaultListModel model = (DefaultListModel) items.getModel();
-                model.addElement(tutorial.indexOf(entry) + 1);
-            }
         }
         clearCard();
         LOGGER.info(tutorial.toString());
     }
     private void updateEntryPrevious() {
-        Entry entry = new Entry(question.getText(), answer.getText());
+        Entry entry = createEntry();
         if(currentCardAdded) {
             tutorial.set(entry);
         } else  {
@@ -135,7 +154,7 @@ class TutorialFrame extends JFrame {
     }
     private class SaveMenuListener implements ActionListener {
         public void actionPerformed(ActionEvent ev) {
-            Entry entry = new Entry(question.getText(), answer.getText());
+            Entry entry = createEntry();
             if(currentCardAdded) {
                 tutorial.set(entry);
             } else {
@@ -190,30 +209,34 @@ class TutorialFrame extends JFrame {
         if(entry != null) {
             question.setText(entry.getQuestion());
             answer.setText(entry.getAnswer());
-            items.setSelectedIndex(tutorial.indexOf(entry));
         }
     }
     private void updateIndexFieldNext(Entry entry) {
         if(entry != null) {
-            indexField.setText("" + tutorial.indexOf(entry));
+            index = tutorial.indexOf(entry);
+            indexField.setText("" + index);
+            items.setSelectedIndex(index);
+
         } else {
-            indexField.setText("" + tutorial.size());
+            index = tutorial.size();
+            indexField.setText("" + index);
+            listModel.addElement(index);
+            items.setSelectedIndex(index);
         }
     }
     private void updateIndexFieldPrevious(Entry entry) {
         if(entry != null) {
-            indexField.setText("" + tutorial.indexOf(entry));
+            index = tutorial.indexOf(entry);
+            indexField.setText("" + index);
+            items.setSelectedIndex(index);
         } else {
-            indexField.setText("" + 0);
+            index = 0;
+            indexField.setText("" + index);
+            items.setSelectedIndex(index);
         }
     }
     private void updateCurrentCardAddedNext(Entry entry) {
         currentCardAdded = (entry != null);
-        /*if(entry != null) {
-            currentCardAdded = true;
-        } else {
-            currentCardAdded = false;
-        }*/
     }
     private void updateCurrentCardAddedPrevious(Entry entry) {
         currentCardAdded = true;
