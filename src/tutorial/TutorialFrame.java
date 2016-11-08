@@ -6,7 +6,10 @@ import java.awt.event.*;
 import java.io.*;
 import java.util.logging.Logger;
 
+enum State {NEXT, PREVIOUS, INDEX}
+
 class TutorialFrame extends JFrame {
+    private static final int COLUMNS_NUMBER = 3;
     private JTextArea question;
     private JTextArea answer;
     private Tutorial tutorial;
@@ -16,8 +19,10 @@ class TutorialFrame extends JFrame {
     private static final Logger LOGGER = Logger.getLogger(TutorialFrame.class.getName());
     private DefaultListModel<Integer> listModel;
     private int index;
+    private Controller controller;
 
     TutorialFrame() {
+        controller = new Controller();
         tutorial = new Tutorial();
         currentCardAdded = false;
         setJMenuBar(createMenuBar());
@@ -46,7 +51,7 @@ class TutorialFrame extends JFrame {
         JPanel buttonPanel = new JPanel();
         index = 0;
         indexField = new JTextField("" + index);
-        indexField.setColumns(3);
+        indexField.setColumns(COLUMNS_NUMBER);
         JButton previousButton = new JButton("Previous");
         JButton nextButton = new JButton("Next");
         buttonPanel.add(indexField);
@@ -54,23 +59,7 @@ class TutorialFrame extends JFrame {
         buttonPanel.add(nextButton);
         previousButton.addActionListener(new PreviousCardListener());
         nextButton.addActionListener(new NextCardListener());
-        Action action = new AbstractAction()
-        {
-            @Override
-            public void actionPerformed(ActionEvent e)
-            {
-                System.out.println("some action");
-                int givenIndex;
-                try {
-                    givenIndex = Integer.parseInt(indexField.getText());
-                } catch (NumberFormatException nfe) {
-                    givenIndex = index;
-                }
-                if(givenIndex == index || givenIndex < 0 || givenIndex > tutorial.size()) {
-                    indexField.setText("" + index);
-                }
-            }
-        };
+        Action action = new IndexFieldListener();
         indexField.addActionListener(action);
         return buttonPanel;
     }
@@ -119,42 +108,47 @@ class TutorialFrame extends JFrame {
         mainPanel.add(aScroller);
         return mainPanel;
     }
-    private Entry createEntry() {return new Entry(question.getText(), answer.getText());}
-    private void updateEntryNext() {
-        Entry entry = createEntry();
-        if(currentCardAdded) {
-            tutorial.set(entry);
-        } else  {
-            tutorial.add(entry);
+
+    /**
+     *  Listeners
+     */
+    private class IndexFieldListener extends AbstractAction {
+        @Override
+        public void actionPerformed(ActionEvent e)
+        {
+            int givenIndex;
+            try {
+                givenIndex = Integer.parseInt(indexField.getText());
+            } catch (NumberFormatException nfe) {
+                givenIndex = index;
+            }
+            if(givenIndex == index || givenIndex < 0 || givenIndex > tutorial.size()) {
+                indexField.setText("" + index);
+            } else {
+                index = givenIndex;
+                controller.setState(State.INDEX);
+                controller.updateEntry();
+                controller.showCard(index);
+            }
         }
-        clearCard();
-        LOGGER.info(tutorial.toString());
-    }
-    private void updateEntryPrevious() {
-        Entry entry = createEntry();
-        if(currentCardAdded) {
-            tutorial.set(entry);
-        } else  {
-            tutorial.add(entry);
-        }
-        clearCard();
-        LOGGER.info(tutorial.toString());
     }
     private class NextCardListener implements ActionListener {
         public void actionPerformed(ActionEvent ev) {
-            updateEntryNext();
-            showNextCard();
+            controller.setState(State.NEXT);
+            controller.updateEntry();
+            controller.showCard();
         }
     }
     private class PreviousCardListener implements ActionListener {
         public void actionPerformed(ActionEvent ev) {
-            updateEntryPrevious();
-            showPreviousCard();
+            controller.setState(State.PREVIOUS);
+            controller.updateEntry();
+            controller.showCard();
         }
     }
     private class SaveMenuListener implements ActionListener {
         public void actionPerformed(ActionEvent ev) {
-            Entry entry = createEntry();
+            Entry entry = controller.createEntry();
             if(currentCardAdded) {
                 tutorial.set(entry);
             } else {
@@ -164,81 +158,97 @@ class TutorialFrame extends JFrame {
 
             JFileChooser fileSave = new JFileChooser();
             fileSave.showSaveDialog(TutorialFrame.this);
-            saveFile(fileSave.getSelectedFile());
+            controller.saveFile(fileSave.getSelectedFile());
         }
     }
     private class NewMenuListener implements ActionListener {
         public void actionPerformed(ActionEvent ev) {
             tutorial.clear();
-            clearCard();
+            controller.clearCard();
         }
-    }
-    private void clearCard() {
-        question.setText("");
-        answer.setText("");
-        question.requestFocus();
-    }
-    private void saveFile(File file) {
-        tutorial.save(file);
-        currentCardAdded = true;
     }
     private class OpenMenuListener implements ActionListener {
         public void actionPerformed(ActionEvent ev) {
             JFileChooser fileOpen = new JFileChooser();
             fileOpen.showOpenDialog(TutorialFrame.this);
-            loadFile(fileOpen.getSelectedFile());
+            controller.loadFile(fileOpen.getSelectedFile());
         }
     }
-    private void loadFile(File file) {
-        tutorial.load(file);
-        showNextCard();
-    }
-    private void showNextCard() {
-        Entry entry = tutorial.next();
-        showCard(entry);
-        updateIndexFieldNext(entry);
-        updateCurrentCardAddedNext(entry);
-    }
-    private void showPreviousCard() {
-        Entry entry = tutorial.previous();
-        showCard(entry);
-        updateIndexFieldPrevious(entry);
-        updateCurrentCardAddedPrevious(entry);
-    }
-    private void showCard(Entry entry) {
-        if(entry != null) {
-            question.setText(entry.getQuestion());
-            answer.setText(entry.getAnswer());
-        }
-    }
-    private void updateIndexFieldNext(Entry entry) {
-        if(entry != null) {
-            index = tutorial.indexOf(entry);
-            indexField.setText("" + index);
-            items.setSelectedIndex(index);
 
-        } else {
-            index = tutorial.size();
+
+    /**
+     *  class Controller
+     */
+    private class Controller {
+        private State state;
+        Controller() {state = State.NEXT;}
+        void setState(State state) {this.state = state;}
+        private void clearCard() {
+            question.setText("");
+            answer.setText("");
+            question.requestFocus();
+        }
+        void saveFile(File file) {
+            tutorial.save(file);
+            currentCardAdded = true;
+        }
+        void loadFile(File file) {
+            tutorial.load(file);
+            setState(State.NEXT);
+            showCard();
+        }
+        void showCard() {
+            Entry entry = null;
+            if(state == State.PREVIOUS) {
+                entry = tutorial.previous();
+            } else if(state == State.NEXT) {
+                entry = tutorial.next();
+            }
+            showCard(entry);
+            updateIndexField(entry);
+            updateCurrentCardAdded(entry);
+        }
+        void showCard(int index) {
+            Entry entry = tutorial.get(index);
+            showCard(entry);
+        }
+        void showCard(Entry entry) {
+            if(entry != null) {
+                question.setText(entry.getQuestion());
+                answer.setText(entry.getAnswer());
+            }
+        }
+        void updateIndexField(Entry entry) {
+            if(entry != null) {
+                index = tutorial.indexOf(entry);
+            } else {
+                if(state == State.PREVIOUS) {
+                    index = 0;
+                } else if(state == State.NEXT) {
+                    index = tutorial.size();
+                    listModel.addElement(index);
+                }
+            }
             indexField.setText("" + index);
-            listModel.addElement(index);
             items.setSelectedIndex(index);
         }
-    }
-    private void updateIndexFieldPrevious(Entry entry) {
-        if(entry != null) {
-            index = tutorial.indexOf(entry);
-            indexField.setText("" + index);
-            items.setSelectedIndex(index);
-        } else {
-            index = 0;
-            indexField.setText("" + index);
-            items.setSelectedIndex(index);
+        void updateCurrentCardAdded(Entry entry) {
+            if(state == State.PREVIOUS) {
+                currentCardAdded = true;
+            } else if(state == State.NEXT) {
+                currentCardAdded = (entry != null);
+            }
         }
-    }
-    private void updateCurrentCardAddedNext(Entry entry) {
-        currentCardAdded = (entry != null);
-    }
-    private void updateCurrentCardAddedPrevious(Entry entry) {
-        currentCardAdded = true;
+        Entry createEntry() {return new Entry(question.getText(), answer.getText());}
+        void updateEntry() {
+            Entry entry = createEntry();
+            if(currentCardAdded) {
+                tutorial.set(entry);
+            } else  {
+                tutorial.add(entry);
+            }
+            clearCard();
+            LOGGER.info(tutorial.toString());
+        }
     }
 }

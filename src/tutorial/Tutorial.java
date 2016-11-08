@@ -3,6 +3,7 @@ package tutorial;
 import java.io.*;
 import java.util.ArrayList;
 import java.util.ListIterator;
+import java.util.Objects;
 import java.util.logging.Logger;
 
 enum Direction {NONE, PREVIOUS, NEXT}
@@ -34,6 +35,14 @@ class Tutorial {
             }
             direction = Direction.NEXT;
             return iterator.next();
+        }
+    }
+    Entry get(int index) {
+        iterator = quiz.listIterator(index);
+        if(iterator.hasNext()) {
+            return iterator.next();
+        } else {
+            return null;
         }
     }
     Entry previous() {
@@ -69,9 +78,7 @@ class Tutorial {
         try (ObjectInputStream in = new ObjectInputStream(new FileInputStream(file))){
             quiz = (ArrayList<Entry>) in.readObject();
             iterator = quiz.listIterator();
-        } catch (IOException e) {
-            e.printStackTrace();
-        } catch (ClassNotFoundException e ) {
+        } catch (IOException |  ClassNotFoundException e) {
             e.printStackTrace();
         }
     }
