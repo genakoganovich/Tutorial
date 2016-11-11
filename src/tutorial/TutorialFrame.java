@@ -1,12 +1,14 @@
 package tutorial;
 
 import javax.swing.*;
+import javax.swing.event.ListSelectionEvent;
+import javax.swing.event.ListSelectionListener;
 import java.awt.*;
 import java.awt.event.*;
 import java.io.*;
 import java.util.logging.Logger;
 
-enum State {NEXT, PREVIOUS, INDEX}
+enum State {NEXT, PREVIOUS, INDEX, SELECTED}
 
 class TutorialFrame extends JFrame {
     private static final int COLUMNS_NUMBER = 3;
@@ -20,7 +22,7 @@ class TutorialFrame extends JFrame {
     private DefaultListModel<Integer> listModel;
     private int index;
     private Controller controller;
-
+    private ItemsSelectListener itemsSelectListener;
     TutorialFrame() {
         controller = new Controller();
         tutorial = new Tutorial();
@@ -70,6 +72,8 @@ class TutorialFrame extends JFrame {
         items = new JList<>(listModel);
         items.setSelectedIndex(0);
         items.setSelectionMode(ListSelectionModel.SINGLE_INTERVAL_SELECTION);
+        itemsSelectListener = new ItemsSelectListener();
+        items.addListSelectionListener(itemsSelectListener);
         JScrollPane listScroller = new JScrollPane(items);
         listPanel.add(listScroller);
         listScroller.setPreferredSize(new Dimension(50, 300));
@@ -122,7 +126,7 @@ class TutorialFrame extends JFrame {
             } catch (NumberFormatException nfe) {
                 givenIndex = index;
             }
-            if(givenIndex == index || givenIndex < 0 || givenIndex > tutorial.size()) {
+            if(givenIndex == index || givenIndex < 0 || givenIndex > tutorial.size() + 1) {
                 indexField.setText("" + index);
             } else {
                 index = givenIndex;
@@ -174,13 +178,22 @@ class TutorialFrame extends JFrame {
             controller.loadFile(fileOpen.getSelectedFile());
         }
     }
-
+    private class ItemsSelectListener implements ListSelectionListener {
+        @Override
+        public void valueChanged(ListSelectionEvent e) {
+            index = items.getSelectedIndex();
+            controller.setState(State.SELECTED);
+            controller.updateEntry();
+            controller.showCard(index);
+        }
+    }
 
     /**
      *  class Controller
      */
     private class Controller {
         private State state;
+
         Controller() {state = State.NEXT;}
         void setState(State state) {this.state = state;}
         private void clearCard() {
@@ -211,6 +224,8 @@ class TutorialFrame extends JFrame {
         void showCard(int index) {
             Entry entry = tutorial.get(index);
             showCard(entry);
+            updateIndexField(entry);
+            updateCurrentCardAdded(entry);
         }
         void showCard(Entry entry) {
             if(entry != null) {
@@ -227,15 +242,21 @@ class TutorialFrame extends JFrame {
                 } else if(state == State.NEXT) {
                     index = tutorial.size();
                     listModel.addElement(index);
+                } else if(state == State.INDEX) {
+                    listModel.addElement(index);
                 }
             }
-            indexField.setText("" + index);
+            if(state != State.INDEX) {
+                indexField.setText("" + index);
+            }
+            items.removeListSelectionListener(itemsSelectListener);
             items.setSelectedIndex(index);
+            items.addListSelectionListener(itemsSelectListener);
         }
         void updateCurrentCardAdded(Entry entry) {
             if(state == State.PREVIOUS) {
                 currentCardAdded = true;
-            } else if(state == State.NEXT) {
+            } else if(state == State.NEXT || state == State.INDEX || state == State.SELECTED) {
                 currentCardAdded = (entry != null);
             }
         }

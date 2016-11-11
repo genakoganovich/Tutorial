@@ -3,7 +3,6 @@ package tutorial;
 import java.io.*;
 import java.util.ArrayList;
 import java.util.ListIterator;
-import java.util.Objects;
 import java.util.logging.Logger;
 
 enum Direction {NONE, PREVIOUS, NEXT}
@@ -33,17 +32,20 @@ class Tutorial {
             if(direction == Direction.PREVIOUS) {
                 iterator = quiz.listIterator(iterator.nextIndex() + 1);
             }
-            direction = Direction.NEXT;
-            return iterator.next();
+            return returnNext();
         }
     }
     Entry get(int index) {
         iterator = quiz.listIterator(index);
         if(iterator.hasNext()) {
-            return iterator.next();
+            return returnNext();
         } else {
             return null;
         }
+    }
+    private Entry returnNext() {
+        direction = Direction.NEXT;
+        return iterator.next();
     }
     Entry previous() {
         if(iterator == null) {
