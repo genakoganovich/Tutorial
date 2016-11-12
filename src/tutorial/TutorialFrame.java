@@ -23,6 +23,8 @@ class TutorialFrame extends JFrame {
     private int index;
     private Controller controller;
     private ItemsSelectListener itemsSelectListener;
+    private File file;
+
     TutorialFrame() {
         controller = new Controller();
         tutorial = new Tutorial();
@@ -37,15 +39,23 @@ class TutorialFrame extends JFrame {
     private JMenuBar createMenuBar() {
         JMenuBar menuBar = new JMenuBar();
         JMenu fileMenu = new JMenu("File");
+
         JMenuItem newMenuItem = new JMenuItem("New");
-        JMenuItem saveMenuItem = new JMenuItem("Save");
         newMenuItem.addActionListener(new NewMenuListener());
+        fileMenu.add(newMenuItem);
+
+        JMenuItem saveMenuItem = new JMenuItem("Save");
         saveMenuItem.addActionListener(new SaveMenuListener());
+        fileMenu.add(saveMenuItem);
+
+        JMenuItem saveAsMenuItem = new JMenuItem("Save As");
+        saveAsMenuItem.addActionListener(new SaveAsMenuListener());
+        fileMenu.add(saveAsMenuItem);
+
         JMenuItem loadMenuItem = new JMenuItem("Load");
         loadMenuItem.addActionListener(new OpenMenuListener());
-        fileMenu.add(newMenuItem);
-        fileMenu.add(saveMenuItem);
         fileMenu.add(loadMenuItem);
+
         menuBar.add(fileMenu);
         return menuBar;
     }
@@ -117,21 +127,26 @@ class TutorialFrame extends JFrame {
      *  Listeners
      */
     private class IndexFieldListener extends AbstractAction {
-        @Override
-        public void actionPerformed(ActionEvent e)
-        {
+        private int parseIndex() {
             int givenIndex;
             try {
                 givenIndex = Integer.parseInt(indexField.getText());
             } catch (NumberFormatException nfe) {
                 givenIndex = index;
             }
+            return givenIndex;
+        }
+        @Override
+        public void actionPerformed(ActionEvent e)
+        {
+            int givenIndex = parseIndex();
             if(givenIndex == index || givenIndex < 0 || givenIndex > tutorial.size() + 1) {
                 indexField.setText("" + index);
             } else {
                 index = givenIndex;
                 controller.setState(State.INDEX);
                 controller.updateEntry();
+                controller.clearCard();
                 controller.showCard(index);
             }
         }
@@ -140,6 +155,7 @@ class TutorialFrame extends JFrame {
         public void actionPerformed(ActionEvent ev) {
             controller.setState(State.NEXT);
             controller.updateEntry();
+            controller.clearCard();
             controller.showCard();
         }
     }
@@ -147,26 +163,30 @@ class TutorialFrame extends JFrame {
         public void actionPerformed(ActionEvent ev) {
             controller.setState(State.PREVIOUS);
             controller.updateEntry();
+            controller.clearCard();
             controller.showCard();
         }
     }
     private class SaveMenuListener implements ActionListener {
-        public void actionPerformed(ActionEvent ev) {
-            Entry entry = controller.createEntry();
-            if(currentCardAdded) {
-                tutorial.set(entry);
-            } else {
-                tutorial.add(entry);
-                currentCardAdded = true;
+        @Override
+        public void actionPerformed(ActionEvent e) {
+            controller.updateEntry();
+            if(file == null) {
+                controller.chooseSaveFile();
             }
-
-            JFileChooser fileSave = new JFileChooser();
-            fileSave.showSaveDialog(TutorialFrame.this);
-            controller.saveFile(fileSave.getSelectedFile());
+            controller.saveFile(file);
+        }
+    }
+    private class SaveAsMenuListener implements ActionListener {
+        public void actionPerformed(ActionEvent ev) {
+            controller.updateEntry();
+            controller.chooseSaveFile();
+            controller.saveFile(file);
         }
     }
     private class NewMenuListener implements ActionListener {
         public void actionPerformed(ActionEvent ev) {
+            file = null;
             tutorial.clear();
             controller.clearCard();
         }
@@ -175,7 +195,8 @@ class TutorialFrame extends JFrame {
         public void actionPerformed(ActionEvent ev) {
             JFileChooser fileOpen = new JFileChooser();
             fileOpen.showOpenDialog(TutorialFrame.this);
-            controller.loadFile(fileOpen.getSelectedFile());
+            file = fileOpen.getSelectedFile();
+            controller.loadFile(file);
         }
     }
     private class ItemsSelectListener implements ListSelectionListener {
@@ -184,6 +205,8 @@ class TutorialFrame extends JFrame {
             index = items.getSelectedIndex();
             controller.setState(State.SELECTED);
             controller.updateEntry();
+            controller.clearCard();
+            LOGGER.info("index: " + index);
             controller.showCard(index);
         }
     }
@@ -205,10 +228,19 @@ class TutorialFrame extends JFrame {
             tutorial.save(file);
             currentCardAdded = true;
         }
+        void chooseSaveFile() {
+            JFileChooser fileSave = new JFileChooser();
+            fileSave.showSaveDialog(TutorialFrame.this);
+            file = fileSave.getSelectedFile();
+        }
         void loadFile(File file) {
             tutorial.load(file);
-            setState(State.NEXT);
-            showCard();
+            listModel = createListModel();
+            items.removeListSelectionListener(itemsSelectListener);
+            items.setModel(listModel);
+            items.setSelectedIndex(0);
+            items.addListSelectionListener(itemsSelectListener);
+            showCard(0);
         }
         void showCard() {
             Entry entry = null;
@@ -268,8 +300,14 @@ class TutorialFrame extends JFrame {
             } else  {
                 tutorial.add(entry);
             }
-            clearCard();
             LOGGER.info(tutorial.toString());
         }
-    }
-}
+        private DefaultListModel<Integer> createListModel() {
+            DefaultListModel<Integer> model = new DefaultListModel<>();
+            for (int i = 0; i < tutorial.size(); i++) {
+                model.addElement(i);
+            }
+            return model;
+        }
+    } // class Controller
+} // class TutorialFrame
