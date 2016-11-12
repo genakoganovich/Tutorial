@@ -8,7 +8,8 @@ import java.awt.event.*;
 import java.io.*;
 import java.util.logging.Logger;
 
-enum State {NEXT, PREVIOUS, INDEX, SELECTED}
+enum NavigationState {NEXT, PREVIOUS, INDEX, SELECTED}
+enum CardState {NOT_ADDED, ADDED}
 
 class TutorialFrame extends JFrame {
     private static final int COLUMNS_NUMBER = 3;
@@ -16,7 +17,6 @@ class TutorialFrame extends JFrame {
     private JTextArea answer;
     private Tutorial tutorial;
     private JTextField indexField;
-    private boolean currentCardAdded;
     private JList<Integer> items;
     private static final Logger LOGGER = Logger.getLogger(TutorialFrame.class.getName());
     private DefaultListModel<Integer> listModel;
@@ -28,7 +28,6 @@ class TutorialFrame extends JFrame {
     TutorialFrame() {
         controller = new Controller();
         tutorial = new Tutorial();
-        currentCardAdded = false;
         setJMenuBar(createMenuBar());
         getContentPane().add(BorderLayout.CENTER, createMainPanel());
         getContentPane().add(BorderLayout.SOUTH, createButtonPanel());
@@ -144,7 +143,7 @@ class TutorialFrame extends JFrame {
                 indexField.setText("" + index);
             } else {
                 index = givenIndex;
-                controller.setState(State.INDEX);
+                controller.setNavigationState(NavigationState.INDEX);
                 controller.updateEntry();
                 controller.clearCard();
                 controller.showCard(index);
@@ -153,7 +152,7 @@ class TutorialFrame extends JFrame {
     }
     private class NextCardListener implements ActionListener {
         public void actionPerformed(ActionEvent ev) {
-            controller.setState(State.NEXT);
+            controller.setNavigationState(NavigationState.NEXT);
             controller.updateEntry();
             controller.clearCard();
             controller.showCard();
@@ -161,7 +160,7 @@ class TutorialFrame extends JFrame {
     }
     private class PreviousCardListener implements ActionListener {
         public void actionPerformed(ActionEvent ev) {
-            controller.setState(State.PREVIOUS);
+            controller.setNavigationState(NavigationState.PREVIOUS);
             controller.updateEntry();
             controller.clearCard();
             controller.showCard();
@@ -171,10 +170,11 @@ class TutorialFrame extends JFrame {
         @Override
         public void actionPerformed(ActionEvent e) {
             controller.updateEntry();
-            if(file == null) {
+            /*if(file == null) {
                 controller.chooseSaveFile();
-            }
-            controller.saveFile(file);
+            }*/
+            //controller.saveFile(file);
+            controller.setCardState(CardState.ADDED);
         }
     }
     private class SaveAsMenuListener implements ActionListener {
@@ -203,10 +203,9 @@ class TutorialFrame extends JFrame {
         @Override
         public void valueChanged(ListSelectionEvent e) {
             index = items.getSelectedIndex();
-            controller.setState(State.SELECTED);
+            controller.setNavigationState(NavigationState.SELECTED);
             controller.updateEntry();
             controller.clearCard();
-            LOGGER.info("index: " + index);
             controller.showCard(index);
         }
     }
@@ -215,10 +214,14 @@ class TutorialFrame extends JFrame {
      *  class Controller
      */
     private class Controller {
-        private State state;
+        private NavigationState navigationState;
+        private CardState cardState;
 
-        Controller() {state = State.NEXT;}
-        void setState(State state) {this.state = state;}
+        Controller() {
+            navigationState = NavigationState.NEXT;
+            cardState = CardState.NOT_ADDED;
+        }
+        void setNavigationState(NavigationState navigationState) {this.navigationState = navigationState;}
         private void clearCard() {
             question.setText("");
             answer.setText("");
@@ -226,8 +229,9 @@ class TutorialFrame extends JFrame {
         }
         void saveFile(File file) {
             tutorial.save(file);
-            currentCardAdded = true;
+            cardState = CardState.ADDED;
         }
+        void setCardState(CardState cardState) {this.cardState = cardState;}
         void chooseSaveFile() {
             JFileChooser fileSave = new JFileChooser();
             fileSave.showSaveDialog(TutorialFrame.this);
@@ -244,20 +248,20 @@ class TutorialFrame extends JFrame {
         }
         void showCard() {
             Entry entry = null;
-            if(state == State.PREVIOUS) {
+            if(navigationState == NavigationState.PREVIOUS) {
                 entry = tutorial.previous();
-            } else if(state == State.NEXT) {
+            } else if(navigationState == NavigationState.NEXT) {
                 entry = tutorial.next();
             }
             showCard(entry);
             updateIndexField(entry);
-            updateCurrentCardAdded(entry);
+            updateCardState(entry);
         }
         void showCard(int index) {
             Entry entry = tutorial.get(index);
             showCard(entry);
             updateIndexField(entry);
-            updateCurrentCardAdded(entry);
+            updateCardState(entry);
         }
         void showCard(Entry entry) {
             if(entry != null) {
@@ -269,35 +273,39 @@ class TutorialFrame extends JFrame {
             if(entry != null) {
                 index = tutorial.indexOf(entry);
             } else {
-                if(state == State.PREVIOUS) {
+                if(navigationState == NavigationState.PREVIOUS) {
                     index = 0;
-                } else if(state == State.NEXT) {
+                } else if(navigationState == NavigationState.NEXT) {
                     index = tutorial.size();
                     listModel.addElement(index);
-                } else if(state == State.INDEX) {
+                } else if(navigationState == NavigationState.INDEX) {
                     listModel.addElement(index);
                 }
             }
-            if(state != State.INDEX) {
+            if(navigationState != NavigationState.INDEX) {
                 indexField.setText("" + index);
             }
             items.removeListSelectionListener(itemsSelectListener);
             items.setSelectedIndex(index);
             items.addListSelectionListener(itemsSelectListener);
         }
-        void updateCurrentCardAdded(Entry entry) {
-            if(state == State.PREVIOUS) {
-                currentCardAdded = true;
-            } else if(state == State.NEXT || state == State.INDEX || state == State.SELECTED) {
-                currentCardAdded = (entry != null);
+        void updateCardState(Entry entry) {
+            if(navigationState == NavigationState.PREVIOUS) {
+                cardState = CardState.ADDED;
+            } else if(navigationState == NavigationState.NEXT || navigationState == NavigationState.INDEX || navigationState == NavigationState.SELECTED) {
+                if(entry == null){
+                    cardState = CardState.NOT_ADDED;
+                } else {
+                    cardState = CardState.ADDED;
+                }
             }
         }
         Entry createEntry() {return new Entry(question.getText(), answer.getText());}
         void updateEntry() {
             Entry entry = createEntry();
-            if(currentCardAdded) {
+            if(cardState == CardState.ADDED) {
                 tutorial.set(entry);
-            } else  {
+            } else if(cardState == CardState.NOT_ADDED) {
                 tutorial.add(entry);
             }
             LOGGER.info(tutorial.toString());

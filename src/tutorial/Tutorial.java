@@ -23,18 +23,6 @@ class Tutorial {
         iterator = quiz.listIterator(quiz.size());
         direction = Direction.NONE;
     }
-    Entry next() {
-        if(iterator == null) {
-            return null;
-        } else if(!iterator.hasNext()) {
-            return null;
-        } else {
-            if(direction == Direction.PREVIOUS) {
-                iterator = quiz.listIterator(iterator.nextIndex() + 1);
-            }
-            return returnNext();
-        }
-    }
     Entry get(int index) {
         iterator = quiz.listIterator(index);
         if(iterator.hasNext()) {
@@ -46,6 +34,22 @@ class Tutorial {
     private Entry returnNext() {
         direction = Direction.NEXT;
         return iterator.next();
+    }
+    Entry next() {
+        if(iterator == null) {
+            return null;
+        } else if(!iterator.hasNext()) {
+            return null;
+        } else {
+            if(direction == Direction.PREVIOUS) {
+                iterator = quiz.listIterator(iterator.nextIndex() + 1);
+            }
+            if(iterator.hasNext()) {
+                return returnNext();
+            } else {
+                return null;
+            }
+        }
     }
     Entry previous() {
         if(iterator == null) {
@@ -60,8 +64,13 @@ class Tutorial {
             if(direction == Direction.NEXT || direction == Direction.NONE) {
                 iterator = quiz.listIterator(iterator.previousIndex());
             }
-            direction = Direction.PREVIOUS;
-            return iterator.previous();
+            if(iterator.hasPrevious()) {
+                direction = Direction.PREVIOUS;
+                return iterator.previous();
+            }
+            else {
+                return null;
+            }
         }
     }
     void set(Entry entry) {
@@ -91,4 +100,6 @@ class Tutorial {
     @Override
     public String toString() {return quiz.toString();}
     int size() {return quiz.size();}
+    int nextIndex() {return iterator.nextIndex();}
+    int previousIndex() {return iterator.previousIndex();}
 }
