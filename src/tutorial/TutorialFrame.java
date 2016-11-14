@@ -26,8 +26,20 @@ class TutorialFrame extends JFrame {
     private File file;
 
     TutorialFrame() {
+        file = null;
+        index = 0;
+        indexField = new JTextField("" + index);
+        indexField.setColumns(COLUMNS_NUMBER);
         controller = new Controller();
         tutorial = new Tutorial();
+        listModel = new DefaultListModel<>();
+        listModel.addElement(index);
+        items = new JList<>(listModel);
+        items.setSelectedIndex(index);
+        items.setSelectionMode(ListSelectionModel.SINGLE_INTERVAL_SELECTION);
+        itemsSelectListener = new ItemsSelectListener();
+        items.addListSelectionListener(itemsSelectListener);
+
         setJMenuBar(createMenuBar());
         getContentPane().add(BorderLayout.CENTER, createMainPanel());
         getContentPane().add(BorderLayout.SOUTH, createButtonPanel());
@@ -60,9 +72,6 @@ class TutorialFrame extends JFrame {
     }
     private JPanel createButtonPanel() {
         JPanel buttonPanel = new JPanel();
-        index = 0;
-        indexField = new JTextField("" + index);
-        indexField.setColumns(COLUMNS_NUMBER);
         JButton previousButton = new JButton("Previous");
         JButton nextButton = new JButton("Next");
         buttonPanel.add(indexField);
@@ -76,13 +85,6 @@ class TutorialFrame extends JFrame {
     }
     private JPanel createListPanel() {
         JPanel listPanel = new JPanel();
-        listModel = new DefaultListModel<>();
-        listModel.addElement(0);
-        items = new JList<>(listModel);
-        items.setSelectedIndex(0);
-        items.setSelectionMode(ListSelectionModel.SINGLE_INTERVAL_SELECTION);
-        itemsSelectListener = new ItemsSelectListener();
-        items.addListSelectionListener(itemsSelectListener);
         JScrollPane listScroller = new JScrollPane(items);
         listPanel.add(listScroller);
         listScroller.setPreferredSize(new Dimension(50, 300));
@@ -144,43 +146,34 @@ class TutorialFrame extends JFrame {
             } else {
                 index = givenIndex;
                 controller.setNavigationState(NavigationState.INDEX);
-                controller.updateCard();
-                controller.clearCard();
-                controller.showCard(index);
+                controller.updateOldAndShowNewCard();
             }
         }
     }
     private class NextCardListener implements ActionListener {
         public void actionPerformed(ActionEvent ev) {
             controller.setNavigationState(NavigationState.NEXT);
-            controller.updateCard();
-            controller.clearCard();
-            controller.showCard();
+            controller.updateOldAndShowNewCard();
         }
     }
     private class PreviousCardListener implements ActionListener {
         public void actionPerformed(ActionEvent ev) {
             controller.setNavigationState(NavigationState.PREVIOUS);
-            controller.updateCard();
-            controller.clearCard();
-            controller.showCard();
+            controller.updateOldAndShowNewCard();
         }
     }
     private class SaveMenuListener implements ActionListener {
         @Override
         public void actionPerformed(ActionEvent e) {
             controller.updateCard();
-            if(file == null) {
-                controller.chooseSaveFile();
-            }
+            controller.chooseSaveFile(file == null);
             controller.saveFile(file);
-            controller.setCardState(CardState.ADDED);
         }
     }
     private class SaveAsMenuListener implements ActionListener {
         public void actionPerformed(ActionEvent ev) {
             controller.updateCard();
-            controller.chooseSaveFile();
+            controller.chooseSaveFile(true);
             controller.saveFile(file);
         }
     }
@@ -213,7 +206,7 @@ class TutorialFrame extends JFrame {
             controller.setNavigationState(NavigationState.SELECTED);
             controller.updateCard();
             controller.clearCard();
-            controller.showCard(index);
+            controller.showCard();
         }
     }
 
@@ -231,13 +224,22 @@ class TutorialFrame extends JFrame {
         void setNavigationState(NavigationState navigationState) {this.navigationState = navigationState;}
         void setCardState(CardState cardState) {this.cardState = cardState;}
         private void clearCard() {
-            question.setText("");
-            answer.setText("");
+            showCard(new Card());
             question.requestFocus();
         }
         void saveFile(File file) {
             tutorial.save(file);
             cardState = CardState.ADDED;
+        }
+        void chooseSaveFile(boolean saveAs) {
+            if(saveAs) {
+                chooseSaveFile();
+            }
+        }
+        void updateOldAndShowNewCard() {
+            controller.updateCard();
+            controller.clearCard();
+            controller.showCard();
         }
         void chooseSaveFile() {
             JFileChooser fileSave = new JFileChooser();
@@ -249,9 +251,11 @@ class TutorialFrame extends JFrame {
             listModel = createListModel();
             items.removeListSelectionListener(itemsSelectListener);
             items.setModel(listModel);
-            items.setSelectedIndex(0);
+            index = 0;
+            items.setSelectedIndex(index);
             items.addListSelectionListener(itemsSelectListener);
-            showCard(0);
+            controller.setNavigationState(NavigationState.SELECTED);
+            showCard();
         }
         void showCard() {
             Card card = null;
@@ -259,13 +263,9 @@ class TutorialFrame extends JFrame {
                 card = tutorial.previous();
             } else if(navigationState == NavigationState.NEXT) {
                 card = tutorial.next();
+            } else if(navigationState == NavigationState.INDEX || navigationState == NavigationState.SELECTED) {
+                card = tutorial.move(index);
             }
-            showCard(card);
-            updateIndexField(card);
-            updateCardState(card);
-        }
-        void showCard(int index) {
-            Card card = tutorial.move(index);
             showCard(card);
             updateIndexField(card);
             updateCardState(card);
