@@ -2,11 +2,11 @@ package tutorial;
 
 import java.io.Serializable;
 
-class Entry implements Serializable {
+class Card implements Serializable {
     private String question;
     private String answer;
-    Entry() {this("nothing", "nothing");}
-    Entry(String question, String answer) {
+    Card() {this("nothing", "nothing");}
+    Card(String question, String answer) {
         this.question = question;
         this.answer = answer;
     }

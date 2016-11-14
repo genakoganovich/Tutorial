@@ -144,7 +144,7 @@ class TutorialFrame extends JFrame {
             } else {
                 index = givenIndex;
                 controller.setNavigationState(NavigationState.INDEX);
-                controller.updateEntry();
+                controller.updateCard();
                 controller.clearCard();
                 controller.showCard(index);
             }
@@ -153,7 +153,7 @@ class TutorialFrame extends JFrame {
     private class NextCardListener implements ActionListener {
         public void actionPerformed(ActionEvent ev) {
             controller.setNavigationState(NavigationState.NEXT);
-            controller.updateEntry();
+            controller.updateCard();
             controller.clearCard();
             controller.showCard();
         }
@@ -161,7 +161,7 @@ class TutorialFrame extends JFrame {
     private class PreviousCardListener implements ActionListener {
         public void actionPerformed(ActionEvent ev) {
             controller.setNavigationState(NavigationState.PREVIOUS);
-            controller.updateEntry();
+            controller.updateCard();
             controller.clearCard();
             controller.showCard();
         }
@@ -169,17 +169,17 @@ class TutorialFrame extends JFrame {
     private class SaveMenuListener implements ActionListener {
         @Override
         public void actionPerformed(ActionEvent e) {
-            controller.updateEntry();
-            /*if(file == null) {
+            controller.updateCard();
+            if(file == null) {
                 controller.chooseSaveFile();
-            }*/
-            //controller.saveFile(file);
+            }
+            controller.saveFile(file);
             controller.setCardState(CardState.ADDED);
         }
     }
     private class SaveAsMenuListener implements ActionListener {
         public void actionPerformed(ActionEvent ev) {
-            controller.updateEntry();
+            controller.updateCard();
             controller.chooseSaveFile();
             controller.saveFile(file);
         }
@@ -189,6 +189,13 @@ class TutorialFrame extends JFrame {
             file = null;
             tutorial.clear();
             controller.clearCard();
+            controller.setNavigationState(NavigationState.NEXT);
+            controller.setCardState(CardState.NOT_ADDED);
+            items.removeListSelectionListener(itemsSelectListener);
+            listModel.clear();
+            listModel.addElement(0);
+            items.setSelectedIndex(0);
+            items.addListSelectionListener(itemsSelectListener);
         }
     }
     private class OpenMenuListener implements ActionListener {
@@ -204,7 +211,7 @@ class TutorialFrame extends JFrame {
         public void valueChanged(ListSelectionEvent e) {
             index = items.getSelectedIndex();
             controller.setNavigationState(NavigationState.SELECTED);
-            controller.updateEntry();
+            controller.updateCard();
             controller.clearCard();
             controller.showCard(index);
         }
@@ -222,6 +229,7 @@ class TutorialFrame extends JFrame {
             cardState = CardState.NOT_ADDED;
         }
         void setNavigationState(NavigationState navigationState) {this.navigationState = navigationState;}
+        void setCardState(CardState cardState) {this.cardState = cardState;}
         private void clearCard() {
             question.setText("");
             answer.setText("");
@@ -231,7 +239,6 @@ class TutorialFrame extends JFrame {
             tutorial.save(file);
             cardState = CardState.ADDED;
         }
-        void setCardState(CardState cardState) {this.cardState = cardState;}
         void chooseSaveFile() {
             JFileChooser fileSave = new JFileChooser();
             fileSave.showSaveDialog(TutorialFrame.this);
@@ -247,31 +254,31 @@ class TutorialFrame extends JFrame {
             showCard(0);
         }
         void showCard() {
-            Entry entry = null;
+            Card card = null;
             if(navigationState == NavigationState.PREVIOUS) {
-                entry = tutorial.previous();
+                card = tutorial.previous();
             } else if(navigationState == NavigationState.NEXT) {
-                entry = tutorial.next();
+                card = tutorial.next();
             }
-            showCard(entry);
-            updateIndexField(entry);
-            updateCardState(entry);
+            showCard(card);
+            updateIndexField(card);
+            updateCardState(card);
         }
         void showCard(int index) {
-            Entry entry = tutorial.get(index);
-            showCard(entry);
-            updateIndexField(entry);
-            updateCardState(entry);
+            Card card = tutorial.move(index);
+            showCard(card);
+            updateIndexField(card);
+            updateCardState(card);
         }
-        void showCard(Entry entry) {
-            if(entry != null) {
-                question.setText(entry.getQuestion());
-                answer.setText(entry.getAnswer());
+        void showCard(Card card) {
+            if(card != null) {
+                question.setText(card.getQuestion());
+                answer.setText(card.getAnswer());
             }
         }
-        void updateIndexField(Entry entry) {
-            if(entry != null) {
-                index = tutorial.indexOf(entry);
+        void updateIndexField(Card card) {
+            if(card != null) {
+                index = tutorial.indexOf(card);
             } else {
                 if(navigationState == NavigationState.PREVIOUS) {
                     index = 0;
@@ -289,24 +296,24 @@ class TutorialFrame extends JFrame {
             items.setSelectedIndex(index);
             items.addListSelectionListener(itemsSelectListener);
         }
-        void updateCardState(Entry entry) {
+        void updateCardState(Card card) {
             if(navigationState == NavigationState.PREVIOUS) {
                 cardState = CardState.ADDED;
             } else if(navigationState == NavigationState.NEXT || navigationState == NavigationState.INDEX || navigationState == NavigationState.SELECTED) {
-                if(entry == null){
+                if(card == null){
                     cardState = CardState.NOT_ADDED;
                 } else {
                     cardState = CardState.ADDED;
                 }
             }
         }
-        Entry createEntry() {return new Entry(question.getText(), answer.getText());}
-        void updateEntry() {
-            Entry entry = createEntry();
+        Card createCard() {return new Card(question.getText(), answer.getText());}
+        void updateCard() {
+            Card card = createCard();
             if(cardState == CardState.ADDED) {
-                tutorial.set(entry);
+                tutorial.set(card);
             } else if(cardState == CardState.NOT_ADDED) {
-                tutorial.add(entry);
+                tutorial.add(card);
             }
             LOGGER.info(tutorial.toString());
         }

@@ -2,81 +2,53 @@ package tutorial;
 
 import java.io.*;
 import java.util.ArrayList;
-import java.util.ListIterator;
 import java.util.logging.Logger;
-
-enum Direction {NONE, PREVIOUS, NEXT}
 
 class Tutorial {
     private static final Logger LOGGER = Logger.getLogger(Tutorial.class.getName());
-    private ArrayList<Entry> quiz;
-    private ListIterator<Entry> iterator;
-    private Direction direction;
+    private ArrayList<Card> quiz;
+    private int index;
 
     Tutorial() {
         quiz = new ArrayList<>();
-        iterator = null;
-        direction = Direction.NONE;
+        index = -1;
     }
-    void add(Entry entry) {
-        quiz.add(entry);
-        iterator = quiz.listIterator(quiz.size());
-        direction = Direction.NONE;
+    private boolean hasNext() {return index > -1 && index + 1 < quiz.size();}
+    private boolean hasPrevious() {return index > 0 && index < quiz.size();}
+    private boolean isValid(int index) {return index > -1 && index < quiz.size();}
+
+    void add(Card card) {
+        quiz.add(card);
+        index++;
     }
-    Entry get(int index) {
-        iterator = quiz.listIterator(index);
-        if(iterator.hasNext()) {
-            return returnNext();
+    Card move(int index) {
+        if(isValid(index)) {
+            this.index = index;
+            return quiz.get(index);
+        } else  {
+            return null;
+        }
+    }
+
+    Card next() {
+        if(hasNext()) {
+            index++;
+            return quiz.get(index);
         } else {
             return null;
         }
     }
-    private Entry returnNext() {
-        direction = Direction.NEXT;
-        return iterator.next();
-    }
-    Entry next() {
-        if(iterator == null) {
-            return null;
-        } else if(!iterator.hasNext()) {
-            return null;
+    Card previous() {
+        if(hasPrevious()) {
+            index--;
+            return quiz.get(index);
         } else {
-            if(direction == Direction.PREVIOUS) {
-                iterator = quiz.listIterator(iterator.nextIndex() + 1);
-            }
-            if(iterator.hasNext()) {
-                return returnNext();
-            } else {
-                return null;
-            }
+            index = 0;
+            return quiz.get(index);
         }
     }
-    Entry previous() {
-        if(iterator == null) {
-            return null;
-        } else if(!iterator.hasPrevious()) {
-            if(!quiz.isEmpty()) {
-                return quiz.get(0);
-            } else {
-                return null;
-            }
-        } else {
-            if(direction == Direction.NEXT || direction == Direction.NONE) {
-                iterator = quiz.listIterator(iterator.previousIndex());
-            }
-            if(iterator.hasPrevious()) {
-                direction = Direction.PREVIOUS;
-                return iterator.previous();
-            }
-            else {
-                return null;
-            }
-        }
-    }
-    void set(Entry entry) {
-        iterator.set(entry);
-    }
-    int indexOf(Entry entry) {return quiz.indexOf(entry);}
+    void set(Card card) {quiz.set(index, card);}
+    int indexOf(Card card) {return quiz.indexOf(card);}
     void save(File file) {
         try(ObjectOutputStream os = new ObjectOutputStream(new FileOutputStream(file))) {
             os.writeObject(quiz);
@@ -87,19 +59,16 @@ class Tutorial {
     }
     void load(File file) {
         try (ObjectInputStream in = new ObjectInputStream(new FileInputStream(file))){
-            quiz = (ArrayList<Entry>) in.readObject();
-            iterator = quiz.listIterator();
+            quiz = (ArrayList<Card>) in.readObject();
         } catch (IOException |  ClassNotFoundException e) {
             e.printStackTrace();
         }
     }
     void clear() {
         quiz.clear();
-        iterator = null;
+        index = -1;
     }
     @Override
     public String toString() {return quiz.toString();}
     int size() {return quiz.size();}
-    int nextIndex() {return iterator.nextIndex();}
-    int previousIndex() {return iterator.previousIndex();}
 }
