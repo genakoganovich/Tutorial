@@ -25,7 +25,10 @@ class Tutorial {
         if(isValid(index)) {
             this.index = index;
             return quiz.get(index);
-        } else  {
+        } else if(index == quiz.size()) {
+            this.index = index - 1;
+            return null;
+        }else  {
             return null;
         }
     }
