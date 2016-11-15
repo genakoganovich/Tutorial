@@ -25,20 +25,30 @@ class TutorialFrame extends JFrame {
     private ItemsSelectListener itemsSelectListener;
     private File file;
 
-    TutorialFrame() {
+    private void initialize() {
         file = null;
         index = 0;
+        tutorial.clear();
+        controller.setNavigationState(NavigationState.NEXT);
+        controller.setCardState(CardState.NOT_ADDED);
+        items.removeListSelectionListener(itemsSelectListener);
+        listModel.clear();
+        listModel.addElement(index);
+        items.setSelectedIndex(index);
+        items.setSelectionMode(ListSelectionModel.SINGLE_INTERVAL_SELECTION);
+        items.addListSelectionListener(itemsSelectListener);
+    }
+
+    TutorialFrame() {
         indexField = new JTextField("" + index);
         indexField.setColumns(COLUMNS_NUMBER);
         controller = new Controller();
         tutorial = new Tutorial();
         listModel = new DefaultListModel<>();
-        listModel.addElement(index);
         items = new JList<>(listModel);
-        items.setSelectedIndex(index);
-        items.setSelectionMode(ListSelectionModel.SINGLE_INTERVAL_SELECTION);
         itemsSelectListener = new ItemsSelectListener();
-        items.addListSelectionListener(itemsSelectListener);
+
+        initialize();
 
         setJMenuBar(createMenuBar());
         getContentPane().add(BorderLayout.CENTER, createMainPanel());
@@ -179,16 +189,8 @@ class TutorialFrame extends JFrame {
     }
     private class NewMenuListener implements ActionListener {
         public void actionPerformed(ActionEvent ev) {
-            file = null;
-            tutorial.clear();
+            initialize();
             controller.clearCard();
-            controller.setNavigationState(NavigationState.NEXT);
-            controller.setCardState(CardState.NOT_ADDED);
-            items.removeListSelectionListener(itemsSelectListener);
-            listModel.clear();
-            listModel.addElement(0);
-            items.setSelectedIndex(0);
-            items.addListSelectionListener(itemsSelectListener);
         }
     }
     private class OpenMenuListener implements ActionListener {
