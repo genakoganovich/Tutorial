@@ -55,7 +55,7 @@ class Tutorial {
     void save(File file) {
         try(ObjectOutputStream os = new ObjectOutputStream(new FileOutputStream(file))) {
             os.writeObject(quiz);
-            LOGGER.info(quiz.toString());
+            //LOGGER.info(quiz.toString());
         } catch (IOException e) {
             e.printStackTrace();
         }

@@ -3,8 +3,13 @@ package tutorial;
 import javax.swing.*;
 import javax.swing.event.ListSelectionEvent;
 import javax.swing.event.ListSelectionListener;
+import javax.swing.text.BadLocationException;
+import javax.swing.text.Style;
+import javax.swing.text.StyleConstants;
+import javax.swing.text.StyledDocument;
 import java.awt.*;
 import java.awt.event.*;
+import java.awt.image.BufferedImage;
 import java.io.*;
 import java.util.logging.Logger;
 
@@ -13,8 +18,8 @@ enum CardState {NOT_ADDED, ADDED}
 
 class TutorialFrame extends JFrame {
     private static final int COLUMNS_NUMBER = 3;
-    private JTextArea question;
-    private JTextArea answer;
+    private JTextPane question;
+    private JTextPane answer;
     private Tutorial tutorial;
     private JTextField indexField;
     private JList<Integer> items;
@@ -24,6 +29,7 @@ class TutorialFrame extends JFrame {
     private Controller controller;
     private ItemsSelectListener itemsSelectListener;
     private File file;
+    private InvisibleDialog dialog;
 
     private void initialize() {
         file = null;
@@ -54,7 +60,9 @@ class TutorialFrame extends JFrame {
         getContentPane().add(BorderLayout.CENTER, createMainPanel());
         getContentPane().add(BorderLayout.SOUTH, createButtonPanel());
         getContentPane().add(BorderLayout.EAST, createListPanel());
-        setSize(500, 600);
+
+        Dimension screenSize = Toolkit.getDefaultToolkit().getScreenSize();
+        setSize(screenSize.width, screenSize.height);
         setVisible(true);
     }
     private JMenuBar createMenuBar() {
@@ -76,20 +84,34 @@ class TutorialFrame extends JFrame {
         JMenuItem loadMenuItem = new JMenuItem("Load");
         loadMenuItem.addActionListener(new OpenMenuListener());
         fileMenu.add(loadMenuItem);
+        JMenuItem screenShotItem = new JMenuItem("ScreenShot");
+        screenShotItem.addActionListener(event -> {
+            if (dialog == null) {
+                dialog = new InvisibleDialog(TutorialFrame.this);
+            }
+            JDialogUtil.installEscapeCloseOperation(dialog);
+            dialog.setVisible(true); // pop up dialog
 
+        });
+        fileMenu.add(screenShotItem);
         menuBar.add(fileMenu);
         return menuBar;
     }
     private JPanel createButtonPanel() {
         JPanel buttonPanel = new JPanel();
+
         JButton previousButton = new JButton("Previous");
+        previousButton.addActionListener(new NavigationListener(NavigationState.PREVIOUS));
+
         JButton nextButton = new JButton("Next");
+        nextButton.addActionListener(new NavigationListener(NavigationState.NEXT));
+
         buttonPanel.add(indexField);
         buttonPanel.add(previousButton);
         buttonPanel.add(nextButton);
-        previousButton.addActionListener(new PreviousCardListener());
-        nextButton.addActionListener(new NextCardListener());
-        Action action = new IndexFieldListener();
+
+
+        Action action = new IndexFieldAction();
         indexField.addActionListener(action);
         return buttonPanel;
     }
@@ -104,20 +126,14 @@ class TutorialFrame extends JFrame {
         JPanel mainPanel = new JPanel();
         mainPanel.setLayout(new BoxLayout(mainPanel, BoxLayout.PAGE_AXIS));
         Font bigFont = new Font("sanserif", Font.BOLD, 24);
-        question = new JTextArea(6, 20);
-        question.setLineWrap(true);
-        question.setWrapStyleWord(true);
+        question = new JTextPane();
         question.setFont(bigFont);
-
         JScrollPane qScroller = new JScrollPane(question);
         qScroller.setVerticalScrollBarPolicy(
                 ScrollPaneConstants.VERTICAL_SCROLLBAR_ALWAYS);
         qScroller.setHorizontalScrollBarPolicy(
                 ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
-
-        answer = new JTextArea(6, 20);
-        answer.setLineWrap(true);
-        answer.setWrapStyleWord(true);
+        answer = new JTextPane();
         answer.setFont(bigFont);
 
         JScrollPane aScroller = new JScrollPane(answer);
@@ -133,11 +149,15 @@ class TutorialFrame extends JFrame {
         mainPanel.add(aScroller);
         return mainPanel;
     }
-
+    void setImage(BufferedImage image) {
+        controller.setImage(image);
+    }
     /**
      *  Listeners
      */
-    private class IndexFieldListener extends AbstractAction {
+    private class IndexFieldAction extends AbstractAction {
+        private final NavigationState state = NavigationState.INDEX;
+
         private int parseIndex() {
             int givenIndex;
             try {
@@ -155,20 +175,28 @@ class TutorialFrame extends JFrame {
                 indexField.setText("" + index);
             } else {
                 index = givenIndex;
-                controller.setNavigationState(NavigationState.INDEX);
+                controller.setNavigationState(state);
                 controller.updateOldAndShowNewCard();
             }
         }
     }
-    private class NextCardListener implements ActionListener {
+    private class NavigationListener implements ActionListener {
+        private final NavigationState state;
+
+        NavigationListener(NavigationState state) {this.state = state;}
+        @Override
         public void actionPerformed(ActionEvent ev) {
-            controller.setNavigationState(NavigationState.NEXT);
+            controller.setNavigationState(state);
             controller.updateOldAndShowNewCard();
         }
     }
-    private class PreviousCardListener implements ActionListener {
-        public void actionPerformed(ActionEvent ev) {
-            controller.setNavigationState(NavigationState.PREVIOUS);
+    private class ItemsSelectListener implements ListSelectionListener {
+        private final NavigationState state = NavigationState.SELECTED;
+
+        @Override
+        public void valueChanged(ListSelectionEvent e) {
+            index = items.getSelectedIndex();
+            controller.setNavigationState(state);
             controller.updateOldAndShowNewCard();
         }
     }
@@ -185,6 +213,7 @@ class TutorialFrame extends JFrame {
             controller.updateCard();
             controller.chooseSaveFile(true);
             controller.saveFile(file);
+            setTitle("TutorialTest" + " - " + file.getName());
         }
     }
     private class NewMenuListener implements ActionListener {
@@ -199,19 +228,9 @@ class TutorialFrame extends JFrame {
             fileOpen.showOpenDialog(TutorialFrame.this);
             file = fileOpen.getSelectedFile();
             controller.loadFile(file);
+            setTitle("TutorialTest" + " - " + file.getName());
         }
     }
-    private class ItemsSelectListener implements ListSelectionListener {
-        @Override
-        public void valueChanged(ListSelectionEvent e) {
-            index = items.getSelectedIndex();
-            controller.setNavigationState(NavigationState.SELECTED);
-            controller.updateCard();
-            controller.clearCard();
-            controller.showCard();
-        }
-    }
-
     /**
      *  class Controller
      */
@@ -317,7 +336,7 @@ class TutorialFrame extends JFrame {
             } else if(cardState == CardState.NOT_ADDED) {
                 tutorial.add(card);
             }
-            LOGGER.info(tutorial.toString());
+            //LOGGER.info(tutorial.toString());
         }
         private DefaultListModel<Integer> createListModel() {
             DefaultListModel<Integer> model = new DefaultListModel<>();
@@ -325,6 +344,17 @@ class TutorialFrame extends JFrame {
                 model.addElement(i);
             }
             return model;
+        }
+        void setImage(BufferedImage image) {
+            StyledDocument doc = (StyledDocument) answer.getDocument();
+            Style style = doc.addStyle("StyleName", null);
+            StyleConstants.setIcon(style, new ImageIcon(image));
+
+            try {
+                doc.insertString(doc.getLength(), "ignored text", style);
+            } catch (BadLocationException e) {
+                e.printStackTrace();
+            }
         }
     } // class Controller
 } // class TutorialFrame
