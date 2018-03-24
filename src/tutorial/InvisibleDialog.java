@@ -17,13 +17,30 @@ class InvisibleDialog extends JDialog {
     InvisibleDialog(TutorialFrame frame) {
         this.frame = frame;
         setUndecorated(true);
-        setBackground(new Color(0, 0, 0, 0));
+        setBackground(new Color(0, 0, 0, 100));
         translucentPane = new TranslucentPane(this);
         setContentPane(translucentPane);
         pack();
         setVisible(true);
     }
-    public Dimension getPreferredSize() { return Toolkit.getDefaultToolkit().getScreenSize(); }
+    public Dimension getPreferredSize() {
+        return getMonitorSizes();
+    }
+    private Dimension getMonitorSizes() {
+        GraphicsEnvironment ge = GraphicsEnvironment.getLocalGraphicsEnvironment();
+        GraphicsDevice[]    gs = ge.getScreenDevices();
+        int totalWidth = 0;
+        int totalHeight = 0;
+        for (GraphicsDevice g: gs) {
+            DisplayMode dm = g.getDisplayMode();
+            totalWidth += dm.getWidth();
+            if (totalHeight < dm.getHeight()) {
+                totalHeight = dm.getHeight();
+            }
+        }
+        System.out.println(totalWidth + " x " + totalHeight);
+        return new Dimension(totalWidth, totalHeight);
+    }
     TutorialFrame getFrame() {return frame;}
 }
 class TranslucentPane extends JPanel {
