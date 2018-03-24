@@ -2,9 +2,13 @@ package tutorial;
 
 import javax.swing.*;
 import java.awt.*;
+import java.awt.datatransfer.DataFlavor;
+import java.awt.datatransfer.Transferable;
+import java.awt.datatransfer.UnsupportedFlavorException;
 import java.awt.event.*;
 import java.awt.geom.Rectangle2D;
 import java.awt.image.BufferedImage;
+import java.io.IOException;
 
 class InvisibleDialog extends JDialog {
     private TranslucentPane translucentPane;
@@ -69,11 +73,47 @@ class TranslucentPane extends JPanel {
                         (int) screenRect.getWidth(),
                         (int) screenRect.getHeight())
                 );
-                dialog.getFrame().setImage(image);
+                //dialog.getFrame().setImage(image);
+                ImageSelection imgSel = new ImageSelection(image);
+                Toolkit.getDefaultToolkit().getSystemClipboard().setContents(imgSel, null);
                 dialog.dispose();
             } catch (AWTException e) {
                 e.printStackTrace();
             }
         }
     }
+    // This class is used to hold an image while on the clipboard.
+    static class ImageSelection implements Transferable
+    {
+        private Image image;
+
+        public ImageSelection(Image image)
+        {
+            this.image = image;
+        }
+
+        // Returns supported flavors
+        public DataFlavor[] getTransferDataFlavors()
+        {
+            return new DataFlavor[] { DataFlavor.imageFlavor };
+        }
+
+        // Returns true if flavor is supported
+        public boolean isDataFlavorSupported(DataFlavor flavor)
+        {
+            return DataFlavor.imageFlavor.equals(flavor);
+        }
+
+        // Returns image
+        public Object getTransferData(DataFlavor flavor)
+                throws UnsupportedFlavorException, IOException
+        {
+            if (!DataFlavor.imageFlavor.equals(flavor))
+            {
+                throw new UnsupportedFlavorException(flavor);
+            }
+            return image;
+        }
+    }
+
 }
